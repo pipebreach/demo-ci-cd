@@ -126,6 +126,7 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 - `ci.yml`
 - `sast.yml`
 - `dependency-review.yml`
+- `Code Scanning Gate`
 - `preview.yml` after the blocking checks succeed
 
 The preview workflow then runs functional tests and DAST against the pull
@@ -136,6 +137,7 @@ request branch.
 - `ci.yml`
 - `sast.yml`
 - `sca.yml`
+- `Code Scanning Gate`
 
 and only starts `preview.yml` after those checks succeed.
 

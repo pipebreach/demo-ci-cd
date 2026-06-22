@@ -31,10 +31,54 @@ jobs:
     name: "SCA"
     uses: ./.github/workflows/sca.yml
 
+  code-scanning-gate:
+    name: "Code Scanning Gate"
+    needs: [sast]
+    if: needs.sast.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - name: Wait for CodeQL code scanning result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+
+          for i in $(seq 1 24); do
+            RESPONSE=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/commits/${COMMIT_SHA}/check-runs")
+
+            STATUS=$(echo "$RESPONSE" | jq -r '.check_runs[] | select(.name=="CodeQL") | .status' | head -1)
+            CONCLUSION=$(echo "$RESPONSE" | jq -r '.check_runs[] | select(.name=="CodeQL") | .conclusion' | head -1)
+
+            if [ -n "$STATUS" ] && [ "$STATUS" != "null" ]; then
+              echo "[${i}/24] CodeQL check status=${STATUS} conclusion=${CONCLUSION}"
+
+              if [ "$STATUS" = "completed" ]; then
+                if [ "$CONCLUSION" = "success" ]; then
+                  exit 0
+                fi
+
+                echo "::error::CodeQL code scanning result is ${CONCLUSION}."
+                exit 1
+              fi
+            else
+              echo "[${i}/24] CodeQL check not published yet."
+            fi
+
+            sleep 10
+          done
+
+          echo "::error::Timed out waiting for CodeQL code scanning results."
+          exit 1
+
   preview-validation:
     name: "Preview, Functional Tests, and DAST"
-    needs: [ci, sast, sca]
-    if: needs.ci.result == 'success' && needs.sast.result == 'success' && needs.sca.result == 'success'
+    needs: [ci, sast, sca, code-scanning-gate]
+    if: needs.ci.result == 'success' && needs.sast.result == 'success' && needs.sca.result == 'success' && needs.code-scanning-gate.result == 'success'
     uses: ./.github/workflows/preview.yml
     with:
       branch: main
