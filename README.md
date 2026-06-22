@@ -125,7 +125,7 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 
 - `ci.yml`
 - `sast.yml`
-- `sca.yml`
+- `dependency-review.yml`
 - `preview.yml` after the blocking checks succeed
 
 The preview workflow then runs functional tests and DAST against the pull
@@ -148,10 +148,10 @@ on a schedule.
 
 ### SCA
 
-`sca.yml` provides:
+The SCA layer is split into two workflows:
 
-- `Dependency Review` in the pull request pipeline
-- scheduled and manual `pip-audit` runs
+- `dependency-review.yml` for pull request dependency changes
+- `sca.yml` for scheduled and manual `pip-audit` runs
 - Dependabot support through `.github/dependabot.yml`
 
 > `Dependency Review` requires **Dependency graph** to be enabled in the

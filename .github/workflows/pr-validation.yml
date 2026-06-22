@@ -22,9 +22,7 @@ jobs:
 
   sca:
     name: "SCA"
-    uses: ./.github/workflows/sca.yml
-    with:
-      dependency_review: true
+    uses: ./.github/workflows/dependency-review.yml
 
   preview-validation:
     name: "Preview, Functional Tests, and DAST"

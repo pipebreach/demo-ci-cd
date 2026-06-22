@@ -1,18 +1,6 @@
-name: "SCA - Dependency Review and Audit"
+name: "SCA - pip-audit"
 
 on:
-  workflow_call:
-    inputs:
-      dependency_review:
-        description: "Run dependency review for pull requests"
-        required: false
-        default: false
-        type: boolean
-      pip_audit:
-        description: "Run pip-audit checks"
-        required: false
-        default: false
-        type: boolean
   push:
     branches: [main]
     paths:
@@ -27,20 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  dependency-review:
-    name: "Dependency Review"
-    if: inputs.dependency_review
-    runs-on: ubuntu-latest
-    steps:
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        with:
-          fail-on-severity: high
-          fail-on-scopes: runtime
-
   pip-audit:
     name: "pip-audit"
-    if: inputs.pip_audit || github.event_name != 'workflow_call'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
