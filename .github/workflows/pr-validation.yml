@@ -30,42 +30,45 @@ jobs:
     if: needs.sast.result == 'success'
     runs-on: ubuntu-latest
     permissions:
-      checks: read
       contents: read
+      security-events: read
     steps:
-      - name: Wait for CodeQL code scanning result
+      - name: Wait for CodeQL analysis and evaluate alerts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+          SCAN_REF="refs/pull/${{ github.event.pull_request.number }}/head"
 
-          for i in $(seq 1 24); do
-            RESPONSE=$(gh api \
+          for i in $(seq 1 36); do
+            ANALYSES=$(gh api \
               -H "Accept: application/vnd.github+json" \
-              "/repos/${{ github.repository }}/commits/${COMMIT_SHA}/check-runs")
+              "/repos/${{ github.repository }}/code-scanning/analyses?ref=${SCAN_REF}&tool_name=CodeQL&per_page=100")
 
-            STATUS=$(echo "$RESPONSE" | jq -r '.check_runs[] | select(.name=="CodeQL") | .status' | head -1)
-            CONCLUSION=$(echo "$RESPONSE" | jq -r '.check_runs[] | select(.name=="CodeQL") | .conclusion' | head -1)
+            COUNT=$(echo "$ANALYSES" | jq 'length')
+            if [ "$COUNT" -gt 0 ]; then
+              echo "[${i}/36] CodeQL analysis published for ${SCAN_REF}."
+              ALERTS=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/code-scanning/alerts?ref=${SCAN_REF}&tool_name=CodeQL&state=open&per_page=100")
 
-            if [ -n "$STATUS" ] && [ "$STATUS" != "null" ]; then
-              echo "[${i}/24] CodeQL check status=${STATUS} conclusion=${CONCLUSION}"
+              HIGH_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "high" or ((.rule.security_severity_level // "") | ascii_downcase) == "critical")] | length')
+              TOTAL_COUNT=$(echo "$ALERTS" | jq 'length')
 
-              if [ "$STATUS" = "completed" ]; then
-                if [ "$CONCLUSION" = "success" ]; then
-                  exit 0
-                fi
+              echo "Open CodeQL alerts: total=${TOTAL_COUNT}, high_or_critical=${HIGH_COUNT}"
 
-                echo "::error::CodeQL code scanning result is ${CONCLUSION}."
+              if [ "$HIGH_COUNT" -gt 0 ]; then
+                echo "::error::High or critical CodeQL alerts detected for ${SCAN_REF}."
                 exit 1
               fi
-            else
-              echo "[${i}/24] CodeQL check not published yet."
+
+              exit 0
             fi
 
+            echo "[${i}/36] CodeQL analysis not published yet for ${SCAN_REF}."
             sleep 10
           done
 
-          echo "::error::Timed out waiting for CodeQL code scanning results."
+          echo "::error::Timed out waiting for CodeQL code scanning analysis."
           exit 1
 
   preview-validation:
