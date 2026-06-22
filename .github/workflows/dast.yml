@@ -1,0 +1,36 @@
+name: "DAST - OWASP ZAP Baseline"
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: "Base URL of the deployed API"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL of the deployed API"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: "ZAP Baseline Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: ${{ inputs.base_url }}
+          allow_issue_writing: false
+          fail_action: true
+          cmd_options: >-
+            -a
+            -l HIGH
+            -J zap-report.json
+            -r zap-report.html
+            -w zap-report.md
