@@ -137,7 +137,7 @@ request branch.
 
 - Ruff linting
 - format validation
-- Bandit scanning
+- `Bandit Scan`
 - pytest execution
 - a final merge gate
 
@@ -205,6 +205,7 @@ Recommended branch protection for `main`:
 Suggested required checks:
 
 - `CI / Merge Gate`
+- `CI / Bandit Scan`
 - `SAST / CodeQL Analysis (Python)`
 - `SCA / Dependency Review`
 - `Preview, Functional Tests, and DAST / Start Preview API`
