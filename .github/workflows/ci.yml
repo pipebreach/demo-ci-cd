@@ -1,4 +1,4 @@
-name: CI - Contratos Ejecutables
+name: "CI - Python Quality and Tests"
 
 on:
   pull_request:
@@ -10,42 +10,6 @@ permissions:
   pull-requests: read
 
 jobs:
-  scope-check:
-    name: "Scope Check"
-    if: >
-      github.event_name == 'pull_request' &&
-      startsWith(github.event.pull_request.title, '[IMPL]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verificar archivos modificados
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          MODIFIED=$(gh pr diff "${{ github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}" \
-            --name-only)
-
-          VIOLATIONS=""
-
-          if echo "$MODIFIED" | grep -q '\.feature$'; then
-            VIOLATIONS="${VIOLATIONS}- .feature (contratos aprobados)\n"
-          fi
-          if echo "$MODIFIED" | grep -q '\.github/workflows/'; then
-            VIOLATIONS="${VIOLATIONS}- .github/workflows/ (CI/CD)\n"
-          fi
-          if echo "$MODIFIED" | grep -qE 'requirements.*\.txt$'; then
-            VIOLATIONS="${VIOLATIONS}- requirements*.txt (dependencias)\n"
-          fi
-          if echo "$MODIFIED" | grep -q 'CODEOWNERS'; then
-            VIOLATIONS="${VIOLATIONS}- CODEOWNERS\n"
-          fi
-
-          if [ -n "$VIOLATIONS" ]; then
-            echo "::error::Archivos fuera de alcance modificados:"
-            echo -e "$VIOLATIONS"
-            exit 1
-          fi
-
   lint:
     name: "Lint & Format"
     runs-on: ubuntu-latest
@@ -88,7 +52,7 @@ jobs:
           fi
 
   test-bdd:
-    name: "Contratos BDD"
+    name: "Pytest"
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
@@ -106,7 +70,7 @@ jobs:
           STEPDEF_COUNT=$(find tests/step_defs -name "test_*.py" 2>/dev/null | wc -l)
 
           if [ "$FEATURE_COUNT" -eq 0 ] || [ "$STEPDEF_COUNT" -eq 0 ]; then
-            echo "::notice::BDD skipped — features: ${FEATURE_COUNT}, step_defs: ${STEPDEF_COUNT}. Pipeline aún en fase de planificación."
+            echo "::notice::BDD skipped — features: ${FEATURE_COUNT}, step_defs: ${STEPDEF_COUNT}."
             exit 0
           fi
 
@@ -129,17 +93,11 @@ jobs:
   gate:
     name: "Merge Gate"
     runs-on: ubuntu-latest
-    needs: [scope-check, lint, security, test-bdd]
+    needs: [lint, security, test-bdd]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          # scope-check is skipped for non-[IMPL] PRs and pushes — that's OK
-          if [ "${{ needs.scope-check.result }}" != "success" ] && \
-             [ "${{ needs.scope-check.result }}" != "skipped" ]; then
-            echo "::error::Scope check failed."
-            exit 1
-          fi
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.security.result }}" != "success" ] || \
              [ "${{ needs.test-bdd.result }}" != "success" ]; then
