@@ -131,6 +131,14 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 The preview workflow then runs functional tests and DAST against the pull
 request branch.
 
+`main-validation.yml` is the entry point for pushes to `main`. It runs:
+
+- `ci.yml`
+- `sast.yml`
+- `sca.yml`
+
+and only starts `preview.yml` after those checks succeed.
+
 ### CI
 
 `ci.yml` is reusable and provides:
@@ -159,8 +167,8 @@ The SCA layer is split into two workflows:
 
 ### Preview and post-deploy validation
 
-`preview.yml` creates a short-lived GitHub Codespace on pushes to `main`,
-and can also be called from the pull request pipeline. It publishes the preview
+`preview.yml` is reusable and manual. It is called by the PR pipeline and the
+main branch pipeline after the blocking checks succeed. It publishes the preview
 URL and triggers:
 
 - `functional-tests.yml`

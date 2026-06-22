@@ -1,14 +1,21 @@
-name: "PR - Validation Pipeline"
+name: "Main - Validation Pipeline"
 
 on:
-  pull_request:
+  push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - ".devcontainer/**"
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
 
 permissions:
   actions: read
   checks: write
   contents: read
-  pull-requests: read
   security-events: write
 
 jobs:
@@ -22,13 +29,13 @@ jobs:
 
   sca:
     name: "SCA"
-    uses: ./.github/workflows/dependency-review.yml
+    uses: ./.github/workflows/sca.yml
 
   preview-validation:
     name: "Preview, Functional Tests, and DAST"
     needs: [ci, sast, sca]
-    if: needs.ci.result == 'success' && needs.sast.result == 'success' && needs.sca.result == 'success' && github.event.pull_request.head.repo.full_name == github.repository
+    if: needs.ci.result == 'success' && needs.sast.result == 'success' && needs.sca.result == 'success'
     uses: ./.github/workflows/preview.yml
     with:
-      branch: ${{ github.head_ref }}
+      branch: main
     secrets: inherit

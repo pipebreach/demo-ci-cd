@@ -7,9 +7,6 @@ on:
         description: "Branch to deploy in the preview environment"
         required: false
         type: string
-  push:
-    branches: [main]
-    paths: ["src/**"]
   workflow_dispatch:
     inputs:
       branch:
