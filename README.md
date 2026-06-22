@@ -204,12 +204,11 @@ Recommended branch protection for `main`:
 
 Suggested required checks:
 
-- `CI / Lint & Format`
-- `CI / Security Scan`
-- `CI / Pytest`
+- `CI / Merge Gate`
 - `SAST / CodeQL Analysis (Python)`
 - `SCA / Dependency Review`
-- `Preview, Functional Tests, and DAST / Functional Tests / Tests Funcionales contra API Real`
+- `Preview, Functional Tests, and DAST / Start Preview API`
+- `Preview, Functional Tests, and DAST / Functional Tests / Functional Tests Against Preview`
 - `Preview, Functional Tests, and DAST / DAST Scan / ZAP Baseline Scan`
 
 ## Design constraints
