@@ -46,20 +46,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CODESPACE_PAT }}
         run: |
-          # En dispatch manual usa el input; en workflow_run usa main.
+          REPO_ID=$(gh api "/repos/${{ github.repository }}" --jq '.id')
           BRANCH="${{ inputs.branch || 'main' }}"
 
-          gh codespace create \
-            --repo "${{ github.repository }}" \
-            --branch "${BRANCH}" \
-            --idle-timeout 30m \
-            --retention-period 2h \
-            --machine basicLinux32gb
+          RESPONSE=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/user/codespaces" \
+            -f repository_id="${REPO_ID}" \
+            -f ref="${BRANCH}")
 
-          NAME=$(gh codespace list \
-            --repo "${{ github.repository }}" \
-            --json name \
-            --jq '.[0].name')
+          NAME=$(echo "$RESPONSE" | jq -r '.name')
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "Codespace creado: ${NAME}"
 
