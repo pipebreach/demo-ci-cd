@@ -38,44 +38,60 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: read
     steps:
-      - name: Wait for CodeQL analysis and evaluate alerts
+      - name: Wait for published CodeQL result
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SCAN_REF="refs/heads/main"
-
           for i in $(seq 1 36); do
-            ANALYSES=$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/${{ github.repository }}/code-scanning/analyses?ref=${SCAN_REF}&tool_name=CodeQL&per_page=100")
+            RESPONSE=$(gh api graphql -f query='
+              query($owner:String!, $repo:String!, $ref:String!) {
+                repository(owner:$owner, name:$repo) {
+                  ref(qualifiedName:$ref) {
+                    target {
+                      __typename
+                      ... on Commit {
+                        statusCheckRollup {
+                          contexts(first:50) {
+                            nodes {
+                              __typename
+                              ... on CheckRun {
+                                name
+                                status
+                                conclusion
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }' \
+              -F owner='${{ github.repository_owner }}' \
+              -F repo='${{ github.event.repository.name }}' \
+              -F ref='refs/heads/main')
 
-            COUNT=$(echo "$ANALYSES" | jq 'length')
-            if [ "$COUNT" -gt 0 ]; then
-              echo "[${i}/36] CodeQL analysis published for ${SCAN_REF}."
-              ALERTS=$(gh api \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${{ github.repository }}/code-scanning/alerts?ref=${SCAN_REF}&tool_name=CodeQL&state=open&per_page=100")
+            STATUS=$(echo "$RESPONSE" | jq -r '.data.repository.ref.target.statusCheckRollup.contexts.nodes[] | select(.name=="CodeQL") | .status' | head -1)
+            CONCLUSION=$(echo "$RESPONSE" | jq -r '.data.repository.ref.target.statusCheckRollup.contexts.nodes[] | select(.name=="CodeQL") | .conclusion' | head -1)
 
-              HIGH_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "high" or ((.rule.security_severity_level // "") | ascii_downcase) == "critical")] | length')
-              TOTAL_COUNT=$(echo "$ALERTS" | jq 'length')
+            if [ -n "$STATUS" ] && [ "$STATUS" != "null" ]; then
+              echo "[${i}/36] CodeQL status=${STATUS} conclusion=${CONCLUSION}"
+              if [ "$STATUS" = "COMPLETED" ]; then
+                if [ "$CONCLUSION" = "SUCCESS" ]; then
+                  exit 0
+                fi
 
-              echo "Open CodeQL alerts: total=${TOTAL_COUNT}, high_or_critical=${HIGH_COUNT}"
-
-              if [ "$HIGH_COUNT" -gt 0 ]; then
-                echo "::error::High or critical CodeQL alerts detected for ${SCAN_REF}."
+                echo "::error::CodeQL published a blocking result: ${CONCLUSION}."
                 exit 1
               fi
-
-              exit 0
             fi
 
-            echo "[${i}/36] CodeQL analysis not published yet for ${SCAN_REF}."
+            echo "[${i}/36] CodeQL result not published yet."
             sleep 10
           done
 
-          echo "::error::Timed out waiting for CodeQL code scanning analysis."
+          echo "::error::Timed out waiting for the published CodeQL result."
           exit 1
 
   preview-validation:
