@@ -49,7 +49,7 @@ jobs:
                   "⚠️ ZAP did not produce a JSON report. Review the job logs for details.\n",
                   encoding="utf-8",
               )
-              raise SystemExit(0)
+              raise SystemExit(1)
 
           report = json.loads(report_path.read_text(encoding="utf-8"))
           alerts = []
@@ -64,11 +64,18 @@ jobs:
               counts[risk] = counts.get(risk, 0) + 1
 
           total = sum(counts.values())
-          status_line = (
-              "✅ Advisory DAST scan completed with no alerts."
-              if total == 0
-              else "ℹ️ Advisory DAST scan completed. Review the findings below."
-          )
+          if counts["High"] > 0:
+              status_line = (
+                  "❌ DAST policy failed. High severity findings were detected and this check "
+                  "must block the merge."
+              )
+          elif total == 0:
+              status_line = "✅ DAST scan completed with no alerts."
+          else:
+              status_line = (
+                  "ℹ️ DAST scan completed. Only Medium/Low/Informational findings were detected, "
+                  "so the check remains green."
+              )
 
           summary = (
               "## DAST Summary\n\n"
@@ -80,10 +87,11 @@ jobs:
               f"| Medium | {counts['Medium']} |\n"
               f"| Low | {counts['Low']} |\n"
               f"| Informational | {counts['Informational']} |\n\n"
-              "> This workflow is currently advisory: findings are reported in the summary "
-              "and artifact, but they do not fail the check on their own.\n"
+              "> Policy: High findings fail the workflow. Medium, Low, and Informational "
+              "findings are reported but do not fail the check.\n"
           )
           summary_path.write_text(summary, encoding="utf-8")
+          raise SystemExit(1 if counts["High"] > 0 else 0)
           PY
         env:
           DAST_TARGET: ${{ inputs.base_url }}/docs
