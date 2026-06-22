@@ -105,10 +105,20 @@ jobs:
                   "/repos/${{ github.repository }}/code-scanning/alerts?ref=${SCAN_REF}&tool_name=CodeQL&state=open&per_page=20" \
                   2>/dev/null || echo "[]")
 
-                HIGH_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "high" or ((.rule.security_severity_level // "") | ascii_downcase) == "critical")] | length')
-                MEDIUM_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "medium")] | length')
-                LOW_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "low")] | length')
-                TOP_ALERTS=$(echo "$ALERTS" | jq -r '.[0:5][]? | "- **\(.rule.id)** (\((.rule.security_severity_level // "unknown") | ascii_upcase)) — \(.most_recent_instance.location.path // "unknown"):\(.most_recent_instance.location.start_line // 0)"')
+                ALERT_COUNT=$(echo "$ALERTS" | jq 'if type=="array" then length else 0 end')
+                if [ "$ALERT_COUNT" -gt 0 ]; then
+                  HIGH_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "high" or ((.rule.security_severity_level // "") | ascii_downcase) == "critical")] | length')
+                  MEDIUM_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "medium")] | length')
+                  LOW_COUNT=$(echo "$ALERTS" | jq '[.[] | select(((.rule.security_severity_level // "") | ascii_downcase) == "low")] | length')
+                  TOP_ALERTS=$(echo "$ALERTS" | jq -r '.[0:5][]? | "- **\(.rule.id)** (\((.rule.security_severity_level // "unknown") | ascii_upcase)) — \(.most_recent_instance.location.path // "unknown"):\(.most_recent_instance.location.start_line // 0)"')
+                  COUNTS_NOTE=""
+                else
+                  HIGH_COUNT="unavailable"
+                  MEDIUM_COUNT="unavailable"
+                  LOW_COUNT="unavailable"
+                  TOP_ALERTS="- Alert details are not available yet from the Code Scanning API for \`${SCAN_REF}\`."
+                  COUNTS_NOTE="\n> Alert counts are not available yet from the Code Scanning API. Use the CodeQL details link below as the authoritative source."
+                fi
 
                 cat >> "$SUMMARY_FILE" <<EOF
           ## Code Scanning Gate
@@ -127,6 +137,7 @@ jobs:
 
           ### Top open CodeQL alerts
           ${TOP_ALERTS:-"- No detailed alert rows available."}
+          ${COUNTS_NOTE}
           EOF
 
                 echo "::error::CodeQL published a blocking result: ${CONCLUSION}."
