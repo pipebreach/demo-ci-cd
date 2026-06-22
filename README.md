@@ -158,6 +158,10 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 
 ## Delivery pipeline
 
+Quality, security, preview, and post-deployment validation are intentionally
+kept as separate workflows so they can run independently and appear as distinct
+checks in pull requests and branch protection rules.
+
 ### Core CI
 
 `ci.yml` validates pull requests with:
