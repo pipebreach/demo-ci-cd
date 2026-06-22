@@ -1,13 +1,12 @@
 name: "CI - Python Quality and Tests"
 
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
   checks: write
-  pull-requests: read
 
 jobs:
   lint:

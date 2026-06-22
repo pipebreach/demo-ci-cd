@@ -2,6 +2,12 @@ name: "Preview - Codespace Efímero"
 
 # Se dispara en cada push a main (protegido por branch rules) o manualmente.
 on:
+  workflow_call:
+    inputs:
+      branch:
+        description: "Branch to deploy in the preview environment"
+        required: false
+        type: string
   push:
     branches: [main]
     paths: ["src/**"]
@@ -46,7 +52,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CODESPACE_PAT }}
         run: |
-          # En dispatch manual usa el input; en push usa main.
+          # In workflow_call or workflow_dispatch use the provided input; in push use main.
           BRANCH="${{ inputs.branch || 'main' }}"
 
           gh codespace create \

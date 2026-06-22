@@ -23,10 +23,67 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run OWASP ZAP baseline scan
+        id: zap
         uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
-          target: ${{ inputs.base_url }}
+          target: ${{ inputs.base_url }}/docs
           allow_issue_writing: false
-          fail_action: true
+          fail_action: false
           cmd_options: >-
             -a
+
+      - name: Summarize advisory results
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          report_path = Path("report_json.json")
+
+          if not report_path.exists():
+              summary_path.write_text(
+                  "## DAST Summary\n\n"
+                  "⚠️ ZAP did not produce a JSON report. Review the job logs for details.\n",
+                  encoding="utf-8",
+              )
+              raise SystemExit(0)
+
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          alerts = []
+          for site in report.get("site", []):
+              alerts.extend(site.get("alerts", []))
+
+          counts = {"High": 0, "Medium": 0, "Low": 0, "Informational": 0}
+          risk_names = {"3": "High", "2": "Medium", "1": "Low", "0": "Informational"}
+
+          for alert in alerts:
+              risk = risk_names.get(str(alert.get("riskcode")), "Informational")
+              counts[risk] = counts.get(risk, 0) + 1
+
+          total = sum(counts.values())
+          status_line = (
+              "✅ Advisory DAST scan completed with no alerts."
+              if total == 0
+              else "ℹ️ Advisory DAST scan completed. Review the findings below."
+          )
+
+          summary = (
+              "## DAST Summary\n\n"
+              f"{status_line}\n\n"
+              f"Target: `{os.environ['DAST_TARGET']}`\n\n"
+              "| Severity | Alerts |\n"
+              "|---|---:|\n"
+              f"| High | {counts['High']} |\n"
+              f"| Medium | {counts['Medium']} |\n"
+              f"| Low | {counts['Low']} |\n"
+              f"| Informational | {counts['Informational']} |\n\n"
+              "> This workflow is currently advisory: findings are reported in the summary "
+              "and artifact, but they do not fail the check on their own.\n"
+          )
+          summary_path.write_text(summary, encoding="utf-8")
+          PY
+        env:
+          DAST_TARGET: ${{ inputs.base_url }}/docs

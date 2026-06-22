@@ -1,8 +1,18 @@
 name: "SCA - Dependency Review and Audit"
 
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      dependency_review:
+        description: "Run dependency review for pull requests"
+        required: false
+        default: false
+        type: boolean
+      pip_audit:
+        description: "Run pip-audit checks"
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -19,7 +29,7 @@ permissions:
 jobs:
   dependency-review:
     name: "Dependency Review"
-    if: github.event_name == 'pull_request'
+    if: inputs.dependency_review
     runs-on: ubuntu-latest
     steps:
       - name: Review dependency changes
@@ -30,7 +40,7 @@ jobs:
 
   pip-audit:
     name: "pip-audit"
-    if: github.event_name != 'pull_request'
+    if: inputs.pip_audit || github.event_name != 'workflow_call'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

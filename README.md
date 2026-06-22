@@ -5,7 +5,7 @@ and a focused GitHub Actions setup for quality and security validation.
 
 The application is intentionally compact, but the delivery pipeline is layered:
 
-- pull request CI for linting, tests, and fast security feedback
+- an orchestrated pull request validation pipeline
 - SAST with CodeQL
 - SCA with Dependency Review and `pip-audit`
 - post-deploy functional testing
@@ -119,9 +119,21 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 
 ## CI/CD workflows
 
+### Pull request orchestration
+
+`pr-validation.yml` is the entry point for pull requests. It orchestrates:
+
+- `ci.yml`
+- `sast.yml`
+- `sca.yml`
+- `preview.yml` after the blocking checks succeed
+
+The preview workflow then runs functional tests and DAST against the pull
+request branch.
+
 ### CI
 
-`ci.yml` runs on pull requests and provides:
+`ci.yml` is reusable and provides:
 
 - Ruff linting
 - format validation
@@ -131,13 +143,14 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 
 ### SAST
 
-`sast.yml` runs CodeQL on pull requests, pushes to `main`, and on a schedule.
+`sast.yml` is reusable for pull requests and also runs on pushes to `main` and
+on a schedule.
 
 ### SCA
 
 `sca.yml` provides:
 
-- `Dependency Review` on pull requests
+- `Dependency Review` in the pull request pipeline
 - scheduled and manual `pip-audit` runs
 - Dependabot support through `.github/dependabot.yml`
 
@@ -147,7 +160,8 @@ pytest tests/functional/ -v --tb=short --base-url="https://your-api.example"
 ### Preview and post-deploy validation
 
 `preview.yml` creates a short-lived GitHub Codespace on pushes to `main`,
-publishes the preview URL, and triggers:
+and can also be called from the pull request pipeline. It publishes the preview
+URL and triggers:
 
 - `functional-tests.yml`
 - `dast.yml`
@@ -155,6 +169,8 @@ publishes the preview URL, and triggers:
 ### DAST
 
 `dast.yml` runs an OWASP ZAP baseline scan against the deployed preview URL.
+It is currently configured in **advisory mode**: findings are reported in the
+workflow summary and artifact, but warnings do not fail the check on their own.
 
 ## Required repository configuration
 
@@ -173,6 +189,9 @@ Enable the following in GitHub:
 - **Dependency graph**
 - **Code scanning / CodeQL**
 
+If you are using `sast.yml`, disable GitHub's default CodeQL setup to avoid
+duplicated code scanning runs.
+
 Recommended branch protection for `main`:
 
 - pull requests required
@@ -181,11 +200,11 @@ Recommended branch protection for `main`:
 
 Suggested required checks:
 
-- `Lint & Format`
-- `Security Scan`
-- `Pytest`
-- `CodeQL Analysis (Python)`
-- `Dependency Review`
+- `CI / Lint & Format`
+- `CI / Security Scan`
+- `CI / Pytest`
+- `SAST / CodeQL Analysis (Python)`
+- `SCA / Dependency Review`
 
 ## Design constraints
 
