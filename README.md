@@ -218,3 +218,5 @@ The implementation is intentionally constrained:
 
 Those trade-offs keep the codebase compact while still allowing meaningful CI,
 SAST, SCA, and DAST validation.
+
+Test
